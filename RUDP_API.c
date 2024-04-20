@@ -81,7 +81,10 @@ int wait_for_ack(int sockfd, int seqnum, int timeout) {
         }
         printf("wait_for_ack(%d), packet.header.seqnum=%d\n", seqnum, packet.header.seqnum);
         printf("packet.header.flags & ACK=%d\n", packet.header.flags & ACK);
-        if (packet.header.seqnum == seqnum && (packet.header.flags & ACK) == ACK) {   
+        // if packet.header.seqnum > seqnum, it means
+        // the receiver has already got the packet with the seqnum
+        // but the sender didn't get the ack for the seqnum
+        if (packet.header.seqnum >= seqnum && (packet.header.flags & ACK) == ACK) {   
             printf("wait_for_ack(%d) returned SUCCESS\n", seqnum);
             return SUCCESS;
         }
