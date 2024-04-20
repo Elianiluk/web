@@ -52,7 +52,7 @@ int rudp_socket(int domain, int type, int protocol, int isSender) {
         return FAILURE;
     }
 
-    int timeout = (isSender == 1) ? SENDER_TIMEOUT : INIT_SOCKET_TIMEOUT;    
+    int timeout = (isSender == 1) ? SENDER_TIMEOUT : RECEIVER_SOCKET_TIMEOUT;    
     set_timeout(sockfd, timeout);
 
     return sockfd;
@@ -78,14 +78,12 @@ int wait_for_ack(int sockfd, int seqnum, int timeout) {
         if (recv_len == -1) {
             printf("wait_for_ack(%d) returned FAILURE\n", seqnum);
             return FAILURE;
-        }
-        printf("wait_for_ack(%d), packet.header.seqnum=%d\n", seqnum, packet.header.seqnum);
-        printf("packet.header.flags & ACK=%d\n", packet.header.flags & ACK);
+        }        
+
         // if packet.header.seqnum > seqnum, it means
         // the receiver has already got the packet with the seqnum
         // but the sender didn't get the ack for the seqnum
         if (packet.header.seqnum >= seqnum && (packet.header.flags & ACK) == ACK) {   
-            printf("wait_for_ack(%d) returned SUCCESS\n", seqnum);
             return SUCCESS;
         }
     }
@@ -121,16 +119,13 @@ ssize_t rudp_send(int sockfd, const struct sockaddr *dest_addr, socklen_t addrle
         }
         packet.header.checksum = simple_checksum(&packet, sizeof(rudp_header) + chunkSize);
         // Send the packet
-        printf("sending the packet(%d) via sendto\n", seqnum);
         ssize_t sent = sendto(sockfd, &packet, sizeof(rudp_header) + chunkSize, 0, dest_addr, addrlen);        
         if (sent < 0) {
             printf("sendto failed\n");
             return FAILURE;
         }
         // Wait for acknowledgment
-        printf("calling wait_for_ack(%d)\n", seqnum);
         if (wait_for_ack(sockfd, seqnum, ACK_TIMEOUT) == 0) {
-            printf("sender got seqnum=%d\n", seqnum);
             totalSent += (sizeof(rudp_header) + chunkSize); // Acknowledged
             seqnum++;
             attempts = 0; // Reset attempts after successful send
@@ -167,7 +162,6 @@ ssize_t send_ack(int sockfd, const struct sockaddr *dest_addr, socklen_t addrlen
     if (sent < 0) {
         printf("sendto (ACK) failed\n");
     }
-    printf("send_ack sent seq_num=%d\n", seqnum);
     return sent;
 }
 
@@ -217,17 +211,12 @@ ssize_t rudp_recv(int sockfd, struct sockaddr *src_addr, socklen_t *addrlen, voi
     }
 
     if (header->seqnum == seqnum) {
-        if (seqnum == 0 && (header->flags & DATA) == DATA) {
-            set_timeout(sockfd, SYN_TIMEOUT);
-        }        
         if (header->flags == (DATA | FIN)) {  // last packet
-            *status = 2;
-            set_timeout(sockfd, ENDLESS_TIMEOUT);
+            *status = 2;            
         } else if (header->flags == DATA) { // data packet, not last
             *status = 1;
         } else if (header->flags == FIN) {  // close request
-            *status = -2;
-            set_timeout(sockfd, SYN_TIMEOUT);
+            *status = -2;            
         }
     } else {  
         *status = 0; // we got a packet with the wrong sequence number.
