@@ -7,21 +7,21 @@ void usage(char *progname);
 int main(int argc, char *argv[]) {    
     if (argc != 3 || strcmp(argv[1], "-p") != 0) {  
         usage(argv[0]);
-        exit(EXIT_FAILURE);
+        return FAILURE;
     }
 
     printf("~~~~~~~~ RUDP Receiver ~~~~~~~~\n");
     int port = atoi(argv[2]);    
     if (port <= 0) {
         printf("Invalid port number\n");
-        exit(EXIT_FAILURE);
+        return FAILURE;
     }
 
     // Create the RUDP socket
-    int sockfd = rudp_socket(AF_INET, SOCK_DGRAM, 0);
+    int sockfd = rudp_socket(AF_INET, SOCK_DGRAM, 0, 0);
     if (sockfd < 0) {
         printf("Failed to create RUDP socket.\n");
-        exit(EXIT_FAILURE);
+        return FAILURE;
     }
     printf("Socket created.\n");
 
@@ -35,7 +35,7 @@ int main(int argc, char *argv[]) {
     if (bind(sockfd, (struct sockaddr *)&my_addr, sizeof(my_addr)) < 0) {
         printf("Bind failed");
         close(sockfd);
-        exit(EXIT_FAILURE);
+        return FAILURE;
     }
 
     printf("Connection established.\n");
@@ -63,11 +63,11 @@ int main(int argc, char *argv[]) {
     socklen_t addr_len = sizeof(sender_addr);
     ssize_t received_bytes;
     int rcv_status;
-
+    int seqnum = 0;
     do {
         rcv_status = 0;
         // Receive data chunks
-        received_bytes = rudp_recv(sockfd, (struct sockaddr *)&sender_addr, &addr_len, buffer, sizeof(buffer), &rcv_status);
+        received_bytes = rudp_recv(sockfd, (struct sockaddr *)&sender_addr, &addr_len, buffer, sizeof(buffer), seqnum, &rcv_status);
         if (received_bytes < 0) {
             printf("Receive error\n");
             break;
@@ -89,11 +89,13 @@ int main(int argc, char *argv[]) {
 
         // if this is not the last data packet, add it to the total data    
         if (rcv_status == 1) {    
-            strcat(totalData, buffer);      
+            strcat(totalData, buffer);    
+            seqnum++;  
         }
 
         if (rcv_status == 2) { 
-            // if we got the last data packet, take it and write the stats it to the file    
+            // if we got the last data packet, take it and write the stats it to the file  
+            seqnum = 0;  
             strcat(totalData, buffer);
             printf("Received total data length: %zu\n", strlen(totalData));
             end = clock();
@@ -133,6 +135,6 @@ int main(int argc, char *argv[]) {
 }
 
 void usage(char *progname) {
-    fprintf(stderr, "Usage: %s -p <Port>\n", progname);
-    fprintf(stderr, "Example: %s -p 12345\n", progname);
+    printf("Usage: %s -p <Port>\n", progname);
+    printf("Example: %s -p 12345\n", progname);
 }
