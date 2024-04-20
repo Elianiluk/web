@@ -11,8 +11,14 @@
 
 #define RUDP_PORT 12345
 #define RUDP_BUFFER_SIZE 1500
-#define ACK_TIMEOUT 60 // 1 minute
+#define ACK_TIMEOUT 1 // 1 seconds
+#define SENDER_TIMEOUT 2
+#define SYN_TIMEOUT 10
+#define INIT_SOCKET_TIMEOUT 60
+#define ENDLESS_TIMEOUT 10000000
 #define MAX_RETRANS_ATTEMPTS 5
+#define FAILURE -1
+#define SUCCESS 0
 
 // Define flags for RUDP header
 #define SYN 0x01
@@ -24,12 +30,15 @@ typedef struct {
     uint16_t length;
     uint16_t checksum;
     uint8_t flags;
+    uint16_t seqnum;
 } rudp_header;
 
 // RUDP API Functions
 // Creates a RUDP socket
+// @param isSender - 1 for the sender, any other value - receiver.
+// the socket timeout for the sender is 2 sec, for receiever - 60 sec.
 // @return the socket number if success, -1 if failed.
-int rudp_socket(int domain, int type, int protocol);
+int rudp_socket(int domain, int type, int protocol, int isSender);
 
 /**
  * Sending data to a peer.
@@ -41,7 +50,7 @@ int rudp_socket(int domain, int type, int protocol);
  * @param addrlen - Specifies the length of the sockaddr structure pointed to by the dest_addr argument.
  * @param buf - a buffer of data to send.
  * @param len - the length of the data buffer 'buf'.
- * @param sendFin - if 1, send FIN.
+ * @param sendFlag - If 1, send ACK. If 4, send FIN.
  * @return the total bytes sent.
  */
 ssize_t rudp_send(int sockfd, const struct sockaddr *dest_addr, socklen_t addrlen, const void *buf, size_t len, int sendFin);
@@ -56,12 +65,13 @@ ssize_t rudp_send(int sockfd, const struct sockaddr *dest_addr, socklen_t addrle
  * @param addrlen - Specifies the length of the sockaddr structure pointed to by the src_addr argument.
  * @param buf - a buffer of data to receive.
  * @param len - the maximum length of the data buffer 'buf'.
+ * @param seqnum - a sequnce number.
  * @param status - operation status: 
  *  1 is data, 0 if nondata, 2 if last data packet,
  * -2 if close connection, -1 is failed.
  * @return the total bytes received.
  */
-ssize_t rudp_recv(int sockfd, struct sockaddr *src_addr, socklen_t *addrlen, void *buf, size_t len, int *status);
+ssize_t rudp_recv(int sockfd, struct sockaddr *src_addr, socklen_t *addrlen, void *buf, size_t len, int seqnum, int *status);
 
 /* Closes the RUDP socket.
 * @param sockfd - Specifies the socket file descriptor to send from.
