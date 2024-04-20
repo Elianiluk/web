@@ -11,7 +11,6 @@ int main(int argc, char *argv[]) {
         return FAILURE;
     }
 
-    // printf("Example: %s -ip 127.0.0.1 -p 12345 myfile.txt\n", progname);
     const char *ip = argv[2];
     int port = atoi(argv[4]);
     const char *filename = argv[5];   
@@ -40,11 +39,8 @@ int main(int argc, char *argv[]) {
     // handshake with the receiver (send SYN)
     char buf[1];
     int attempts = 0;    
-    printf("rudp_sender: before while\n");
     while (attempts < MAX_RETRANS_ATTEMPTS) {    
-        printf("rudp_sender: in while\n");
         sent_bytes = rudp_send(sockfd, (struct sockaddr *)&dest_addr, sizeof(dest_addr), buf, 1, SYN); 
-        printf("sent_bytes of SYN=%ld\n", sent_bytes);
         if (sent_bytes < 0) {
             attempts++;
         } else {
